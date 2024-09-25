@@ -598,10 +598,15 @@ mod tests_with_manual_clock {
 
     impl Fixture {
         fn new() -> Self {
+            Self::with_min_wait(Duration::from_secs(1))
+        }
+
+        fn with_min_wait(min_wait: Duration) -> Self {
             Self {
                 shared: SharedFixture {
                     limiter: Limiter::builder(512.0)
                         .refill(Duration::from_secs(1))
+                        .min_wait(min_wait)
                         .build(),
                 },
                 pool: LocalPool::new(),
@@ -694,6 +699,43 @@ mod tests_with_manual_clock {
         fx.set_time(2_373_046_874);
         assert_eq!(fx.total_bytes_consumed(), 1215);
         fx.set_time(2_373_046_875);
+        assert_eq!(fx.total_bytes_consumed(), 1215);
+    }
+
+    #[test]
+    fn over_limit_single_thread_with_min_wait() {
+        let mut fx = Fixture::with_min_wait(Duration::from_millis(100));
+
+        fx.spawn(|sfx| {
+            async move {
+                sfx.consume(200).await;
+                assert_eq!(sfx.now(), 0);
+                sfx.consume(201).await;
+                assert_eq!(sfx.now(), 0);
+                sfx.consume(202).await;
+                assert_eq!(sfx.now(), 277_734_375);
+                // 277_734_375 ns = 100_000_000 + (200+201+202-512)/512 seconds
+
+                sfx.consume(203).await;
+                assert_eq!(sfx.now(), 674_218_750);
+                sfx.consume(204).await;
+                assert_eq!(sfx.now(), 1_072_656_250);
+                sfx.consume(205).await;
+                assert_eq!(sfx.now(), 1_473_046_875);
+            }
+        });
+
+        fx.set_time(0);
+        assert_eq!(fx.total_bytes_consumed(), 603);
+        fx.set_time(277_734_374);
+        assert_eq!(fx.total_bytes_consumed(), 603);
+        fx.set_time(277_734_375);
+        assert_eq!(fx.total_bytes_consumed(), 806);
+        fx.set_time(674_218_750);
+        assert_eq!(fx.total_bytes_consumed(), 1010);
+        fx.set_time(1_072_656_250);
+        assert_eq!(fx.total_bytes_consumed(), 1215);
+        fx.set_time(1_473_046_875);
         assert_eq!(fx.total_bytes_consumed(), 1215);
     }
 
