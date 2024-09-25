@@ -133,6 +133,7 @@ impl<C: Clock> Builder<C> {
                 min_wait: 0.1,
             },
             clock,
+            min_wait: None,
         };
         result.speed_limit(speed_limit);
         result
@@ -169,7 +170,9 @@ impl<C: Clock> Builder<C> {
         self
     }
 
-    /// Set the minimum wait duration.
+    /// Sets the minimum wait duration when the speed limit was exceeded.
+    ///
+    /// The default value is same as the refill period.
     pub fn min_wait(&mut self, dur: Duration) -> &mut Self {
         self.min_wait = Some(dur.as_secs_f64());
         self
