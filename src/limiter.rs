@@ -33,6 +33,10 @@ struct Bucket<I> {
     /// The number of bytes the bucket is carrying at the time `last_updated`.
     /// This value can be negative.
     value: f64,
+    /// The minimum duration to wait if self.value is smaller than 0 after
+    /// call `self.consume` (unit: s).
+    /// By default, is the same as `refill`.
+    min_wait: f64,
 }
 
 impl<I> Bucket<I> {
@@ -51,7 +55,7 @@ impl<I> Bucket<I> {
         if self.value > 0.0 {
             Duration::from_secs(0)
         } else {
-            let sleep_secs = self.refill - self.value / self.speed_limit;
+            let sleep_secs = self.min_wait - self.value / self.speed_limit;
             Duration::from_secs_f64(sleep_secs)
         }
     }
@@ -111,6 +115,7 @@ impl<I: Copy + Sub<Output = Duration>> Bucket<I> {
 pub struct Builder<C: Clock> {
     clock: C,
     bucket: Bucket<C::Instant>,
+    min_wait: Option<f64>,
 }
 
 impl<C: Clock> Builder<C> {
@@ -125,6 +130,7 @@ impl<C: Clock> Builder<C> {
                 speed_limit: 0.0,
                 refill: 0.1,
                 value: 0.0,
+                min_wait: 0.1,
             },
             clock,
         };
@@ -163,6 +169,12 @@ impl<C: Clock> Builder<C> {
         self
     }
 
+    /// Set the minimum wait duration.
+    pub fn min_wait(&mut self, dur: Duration) -> &mut Self {
+        self.min_wait = Some(dur.as_secs_f64());
+        self
+    }
+
     /// Sets the clock instance used by the limiter.
     pub fn clock(&mut self, clock: C) -> &mut Self {
         self.clock = clock;
@@ -174,6 +186,8 @@ impl<C: Clock> Builder<C> {
         self.bucket.value = self.bucket.capacity();
         self.bucket.last_updated = self.clock.now();
         let is_unlimited = self.bucket.speed_limit.is_infinite();
+        let min_wait = self.min_wait.unwrap_or(self.bucket.refill);
+        self.bucket.min_wait = min_wait;
         Limiter {
             bucket: Arc::new(Mutex::new(self.bucket)),
             clock: mem::take(&mut self.clock),
