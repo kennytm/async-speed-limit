@@ -17,7 +17,7 @@ impl<R: futures_io::AsyncRead, C: Clock> futures_io::AsyncRead for Resource<R, C
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<usize>> {
-        self.poll_limited(cx, (), length_of_result_usize, |r, cx, _| {
+        self.poll_limited(cx, (), length_of_result_usize, |r, cx, ()| {
             r.poll_read(cx, buf)
         })
     }
@@ -27,7 +27,7 @@ impl<R: futures_io::AsyncRead, C: Clock> futures_io::AsyncRead for Resource<R, C
         cx: &mut Context<'_>,
         bufs: &mut [IoSliceMut<'_>],
     ) -> Poll<io::Result<usize>> {
-        self.poll_limited(cx, (), length_of_result_usize, |r, cx, _| {
+        self.poll_limited(cx, (), length_of_result_usize, |r, cx, ()| {
             r.poll_read_vectored(cx, bufs)
         })
     }
@@ -39,7 +39,7 @@ impl<R: futures_io::AsyncWrite, C: Clock> futures_io::AsyncWrite for Resource<R,
         cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
-        self.poll_limited(cx, (), length_of_result_usize, |r, cx, _| {
+        self.poll_limited(cx, (), length_of_result_usize, |r, cx, ()| {
             r.poll_write(cx, buf)
         })
     }
@@ -49,7 +49,7 @@ impl<R: futures_io::AsyncWrite, C: Clock> futures_io::AsyncWrite for Resource<R,
         cx: &mut Context<'_>,
         bufs: &[IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
-        self.poll_limited(cx, (), length_of_result_usize, |r, cx, _| {
+        self.poll_limited(cx, (), length_of_result_usize, |r, cx, ()| {
             r.poll_write_vectored(cx, bufs)
         })
     }
@@ -244,7 +244,7 @@ mod tests {
 }
 
 #[cfg(test)]
-#[cfg(feature = "standard-clock")]
+#[cfg(all(feature = "tokio", feature = "standard-clock"))]
 mod tokio_tests {
     use std::{
         io,
